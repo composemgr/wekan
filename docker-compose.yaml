@@ -1,0 +1,54 @@
+# nginx proxy address - http://172.17.0.1:8093
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "5m"
+    max-file: "1"
+
+services:
+  wekan:
+    image: wekan/wekan:latest
+    container_name: wekan-app
+    restart: unless-stopped
+    logging: *default-logging
+    networks:
+      - wekan
+    ports:
+      - "8093:8093"
+    environment:
+      TZ: ${TZ:-America/New_York}
+    volumes:
+      - ./rootfs/data/wekan:/data
+      - ./rootfs/config/wekan:/config
+    depends_on:
+      - wekan-db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8093"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  wekan-db:
+    image: mongo:7
+    container_name: wekan-db
+    restart: unless-stopped
+    logging: *default-logging
+    networks:
+      - wekan
+    environment:
+      TZ: ${TZ:-America/New_York}
+      MONGO_INITDB_DATABASE: ${DB_CREATE_DATABASE_NAME:-wekan}
+      MONGO_INITDB_ROOT_USERNAME: ${DB_ADMIN_NAME:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${DB_ADMIN_PASS:-changeme_root_password}
+    volumes:
+      - ./rootfs/db/mongodb/wekan:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  wekan:
+    external: false
