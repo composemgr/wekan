@@ -50,9 +50,9 @@ See `docker-compose.yaml` for complete list of configurable options.
 
 ## 📂 Volumes
 
-- `./rootfs/data/wekan` - Data storage
-- `./rootfs/config/wekan` - Data storage
-- `./rootfs/data/db/mongodb/wekan` - Data storage
+- `./volumes/data/wekan` - Data storage
+- `./volumes/config/wekan` - Data storage
+- `./volumes/data/db/mongodb/wekan` - Data storage
 
 ## 🔐 Security
 
