@@ -17,10 +17,14 @@ services:
     logging: *default-logging
     networks:
       - wekan
+      - proxy
+      - cloudflare
     ports:
       - "172.17.0.1:8093:8080"
     environment:
       TZ: ${TZ:-America/New_York}
+      CONTAINER_NAME: wekan-app
+      HOSTNAME: ${BASE_HOST_NAME:-$HOSTNAME}
       MONGO_URL: mongodb://${DB_USER_NAME:-wekan}:${DB_USER_PASS:-changeme_db_password}@wekan-db:27017/${DB_CREATE_DATABASE_NAME:-wekan}
       ROOT_URL: http://${BASE_HOST_NAME:-$HOSTNAME}:8093
       WITH_API: true
@@ -34,6 +38,22 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    labels:
+      - 'traefik.enable=true'
+      - 'cloudflare.enable=true'
+      - 'traefik.docker.network=proxy'
+      - 'cloudflare.service=http://wekan-app:8080'
+      - 'cloudflare.hostname=wekan.${CLOUDFLARE_ZONE_NAME:-}'
+      - 'traefik.http.routers.wekan-app.entrypoints=http'
+      - 'traefik.http.routers.wekan-app-secure.tls=true'
+      - 'traefik.http.routers.wekan-app.rule=Host($(${BASE_HOST_NAME:-$HOSTNAME}))'
+      - 'traefik.http.middlewares.wekan-app-https-redirect.redirectscheme.scheme=https'
+      - 'traefik.http.routers.wekan-app.middlewares=wekan-app-https-redirect'
+      - 'traefik.http.routers.wekan-app-secure.entrypoints=https'
+      - 'traefik.http.routers.wekan-app-secure.rule=Host($(${BASE_HOST_NAME:-$HOSTNAME}))'
+      - 'traefik.http.routers.wekan-app-secure.tls.certresolver=cloudflare'
+      - 'traefik.http.routers.wekan-app-secure.service=wekan-app'
+      - 'traefik.http.services.wekan-app.loadbalancer.server.port=8080'
 
   wekan-db:
     image: mongo:latest
@@ -45,6 +65,7 @@ services:
       - wekan
     environment:
       TZ: ${TZ:-America/New_York}
+      CONTAINER_NAME: wekan-db
       MONGO_INITDB_DATABASE: ${DB_CREATE_DATABASE_NAME:-wekan}
       MONGO_INITDB_ROOT_USERNAME: ${DB_ADMIN_NAME:-root}
       MONGO_INITDB_ROOT_PASSWORD: ${DB_ADMIN_PASS:-changeme_admin_password}
@@ -60,3 +81,7 @@ networks:
   wekan:
     name: wekan
     external: false
+  proxy:
+    external: true
+  cloudflare:
+    external: true
