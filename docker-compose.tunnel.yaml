@@ -1,0 +1,69 @@
+name: wekan
+x-logging: &default-logging
+  options:
+    max-size: '5m'
+    max-file: '1'
+  driver: json-file
+
+services:
+  app:
+    image: ghcr.io/wekan/wekan:latest
+    container_name: wekan-app
+    hostname: ${BASE_HOST_NAME:-$HOSTNAME}
+    restart: always
+    pull_policy: always
+    logging: *default-logging
+    environment:
+      TZ: ${TZ:-America/New_York}
+      CONTAINER_NAME: wekan-app
+      HOSTNAME: ${BASE_HOST_NAME:-$HOSTNAME}
+      ROOT_URL: http://${BASE_HOST_NAME:-$HOSTNAME}
+      WITH_API: true
+      MONGO_URL: mongodb://${DB_ADMIN_NAME:-root}:${DB_ADMIN_PASS:-replace-with-a-random-password}@wekan-db:27017/${DB_CREATE_DATABASE_NAME:-wekan}?authSource=admin
+      MAIL_URL: smtp://${EMAIL_SERVER_HOST:-172.17.0.1}:${EMAIL_SERVER_PORT:-587}
+      MAIL_FROM: ${EMAIL_SERVER_MAIL_FROM:-no-reply@example.com}
+    depends_on:
+      wekan-db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8080']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - 'cloudflare.enable=true'
+      - 'cloudflare.service=http://wekan-app:8080'
+      - 'cloudflare.hostname=${BASE_HOST_NAME:-$HOSTNAME}'
+    networks:
+      - wekan
+      - cloudflare
+
+  wekan-db:
+    image: mongo:latest
+    container_name: wekan-db
+    hostname: wekan-db
+    restart: always
+    pull_policy: always
+    logging: *default-logging
+    environment:
+      TZ: ${TZ:-America/New_York}
+      CONTAINER_NAME: wekan-db
+      MONGO_INITDB_DATABASE: ${DB_CREATE_DATABASE_NAME:-wekan}
+      MONGO_INITDB_ROOT_USERNAME: ${DB_ADMIN_NAME:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${DB_ADMIN_PASS:-replace-with-a-random-password}
+    volumes:
+      - './volumes/db/mongodb/wekan:/data/db:z'
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - wekan
+
+networks:
+  wekan:
+    name: wekan
+    external: false
+  cloudflare:
+    external: true

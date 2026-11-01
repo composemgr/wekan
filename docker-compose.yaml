@@ -1,87 +1,66 @@
-# nginx proxy address - http://172.17.0.1:8093
+# nginx proxy address - http://172.17.0.1:64385
 
 name: wekan
 x-logging: &default-logging
-  driver: json-file
   options:
-    max-size: "5m"
-    max-file: "1"
+    max-size: '5m'
+    max-file: '1'
+  driver: json-file
 
 services:
-  wekan:
+  app:
     image: ghcr.io/wekan/wekan:latest
-    pull_policy: always
     container_name: wekan-app
     hostname: ${BASE_HOST_NAME:-$HOSTNAME}
     restart: always
+    pull_policy: always
     logging: *default-logging
-    networks:
-      - wekan
-      - proxy
-      - cloudflare
-    ports:
-      - "172.17.0.1:8093:8080"
     environment:
       TZ: ${TZ:-America/New_York}
       CONTAINER_NAME: wekan-app
       HOSTNAME: ${BASE_HOST_NAME:-$HOSTNAME}
-      MONGO_URL: mongodb://${DB_ADMIN_NAME:-root}:${DB_ADMIN_PASS:-changeme_admin_password}@wekan-db:27017/${DB_CREATE_DATABASE_NAME:-wekan}?authSource=admin
-      ROOT_URL: http://${BASE_HOST_NAME:-$HOSTNAME}:8093
+      ROOT_URL: http://${BASE_HOST_NAME:-$HOSTNAME}
       WITH_API: true
+      MONGO_URL: mongodb://${DB_ADMIN_NAME:-root}:${DB_ADMIN_PASS:-replace-with-a-random-password}@wekan-db:27017/${DB_CREATE_DATABASE_NAME:-wekan}?authSource=admin
       MAIL_URL: smtp://${EMAIL_SERVER_HOST:-172.17.0.1}:${EMAIL_SERVER_PORT:-587}
-      MAIL_FROM: ${EMAIL_SERVER_MAIL_FROM:-noreply@example.com}
+      MAIL_FROM: ${EMAIL_SERVER_MAIL_FROM:-no-reply@example.com}
+    ports:
+      - '172.17.0.1:64385:8080'
     depends_on:
       wekan-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8080']
       interval: 30s
       timeout: 10s
       retries: 3
-    labels:
-      - 'traefik.enable=true'
-      - 'cloudflare.enable=true'
-      - 'traefik.docker.network=proxy'
-      - 'cloudflare.service=http://wekan-app:8080'
-      - 'cloudflare.hostname=wekan.${CLOUDFLARE_ZONE_NAME:-}'
-      - 'traefik.http.routers.wekan-app.entrypoints=http'
-      - 'traefik.http.routers.wekan-app-secure.tls=true'
-      - 'traefik.http.routers.wekan-app.rule=Host($(${BASE_HOST_NAME:-$HOSTNAME}))'
-      - 'traefik.http.middlewares.wekan-app-https-redirect.redirectscheme.scheme=https'
-      - 'traefik.http.routers.wekan-app.middlewares=wekan-app-https-redirect'
-      - 'traefik.http.routers.wekan-app-secure.entrypoints=https'
-      - 'traefik.http.routers.wekan-app-secure.rule=Host($(${BASE_HOST_NAME:-$HOSTNAME}))'
-      - 'traefik.http.routers.wekan-app-secure.tls.certresolver=cloudflare'
-      - 'traefik.http.routers.wekan-app-secure.service=wekan-app'
-      - 'traefik.http.services.wekan-app.loadbalancer.server.port=8080'
+    networks:
+      - wekan
 
   wekan-db:
     image: mongo:latest
-    pull_policy: always
     container_name: wekan-db
+    hostname: wekan-db
     restart: always
+    pull_policy: always
     logging: *default-logging
-    networks:
-      - wekan
     environment:
       TZ: ${TZ:-America/New_York}
       CONTAINER_NAME: wekan-db
       MONGO_INITDB_DATABASE: ${DB_CREATE_DATABASE_NAME:-wekan}
       MONGO_INITDB_ROOT_USERNAME: ${DB_ADMIN_NAME:-root}
-      MONGO_INITDB_ROOT_PASSWORD: ${DB_ADMIN_PASS:-changeme_admin_password}
+      MONGO_INITDB_ROOT_PASSWORD: ${DB_ADMIN_PASS:-replace-with-a-random-password}
     volumes:
-      - ./volumes/data/db/mongodb/wekan:/data/db
+      - './volumes/db/mongodb/wekan:/data/db:z'
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping')"]
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - wekan
 
 networks:
   wekan:
     name: wekan
     external: false
-  proxy:
-    external: true
-  cloudflare:
-    external: true

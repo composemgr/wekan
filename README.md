@@ -1,18 +1,20 @@
 ## 👋 Welcome to wekan 🚀
 
-Open-source kanban board
+Wekan - open source kanban board
 
 ## 📋 Description
 
-Open-source kanban board
+Wekan - open source kanban board
 
 ## 🚀 Services
 
-- **wekan**: wekan/wekan:latest
+- **app**: Wekan - open source kanban board
+- **wekan-db**: MongoDB database
+
 
 ### Infrastructure Components
 
-- **wekan-db**: Mongo database
+- **MongoDB**
 
 
 ## 📦 Installation
@@ -26,7 +28,8 @@ curl -q -LSsf "https://raw.githubusercontent.com/composemgr/wekan/main/docker-co
 ```bash
 git clone "https://github.com/composemgr/wekan" ~/.local/srv/docker/wekan
 cd ~/.local/srv/docker/wekan
-docker compose up -d
+cp default.env .env
+docker compose --env-file .env up -d
 ```
 
 ### Option 3: Using composemgr
@@ -40,51 +43,85 @@ composemgr install wekan
 
 ```shell
 TZ=America/New_York
+BASE_HOST_NAME=wekan.example.com
+DB_CREATE_DATABASE_NAME=wekan
+DB_ADMIN_NAME=root
+DB_ADMIN_PASS=replace-with-a-random-password
+EMAIL_SERVER_HOST=172.17.0.1
+EMAIL_SERVER_PORT=587
 ```
 
 See `docker-compose.yaml` for complete list of configurable options.
 
+### Environment Files
+
+`default.env.sample` holds the full set of variables and is copied to `.env`
+before starting the stack:
+
+```bash
+cp default.env .env
+docker compose --env-file .env up -d
+```
+
+`app.env.sample` holds the app-specific overrides and is copied to `app.env`:
+
+```bash
+cp app.env.sample app.env
+```
+
+`composemgr up` applies `app.env` and `default.env` automatically. Raw
+`docker compose` commands need `--env-file .env` to pick up the same values.
+
+### Reverse Proxy
+
+Three standalone compose files ship in this repo:
+
+| File | Use |
+|------|-----|
+| `docker-compose.yaml` | Default, published on `172.17.0.1:64385` |
+| `docker-compose.traefik.yaml` | Behind an existing external `traefik` network |
+| `docker-compose.tunnel.yaml` | Behind an existing external `cloudflare` tunnel network |
+
+```bash
+docker compose -f docker-compose.traefik.yaml --env-file .env up -d
+```
+
 ## 🌐 Access
 
-- **Web Interface**: http://172.17.0.1:8093
+- **Web Interface**: http://172.17.0.1:64385
 
 ## 📂 Volumes
 
-- `./volumes/data/wekan` - Data storage
-- `./volumes/config/wekan` - Data storage
-- `./volumes/data/db/mongodb/wekan` - Data storage
+- `./volumes/db/mongodb/wekan` - Database data
 
 ## 🔐 Security
 
-- Change all default passwords before deploying to production
-- Use strong secrets for all authentication tokens
-- Configure HTTPS using a reverse proxy (nginx, traefik, caddy)
-- Regularly update Docker images for security patches
-- Backup your data regularly
+- Set a strong `DB_ADMIN_PASS` - it is the MongoDB root password
+- Back up the MongoDB volume regularly
 
 ## 🔍 Logging
 
 ```shell
-docker compose logs -f wekan
+docker compose --env-file .env logs -f app
 ```
 
 ## 🛠️ Management
 
 ```bash
 # Start services
-docker compose up -d
+docker compose --env-file .env up -d
 
 # Stop services
-docker compose down
+docker compose --env-file .env down
 
 # Update to latest images
-docker compose pull && docker compose up -d
+docker compose --env-file .env pull && docker compose --env-file .env up -d
 
 # View logs
-docker compose logs -f
+docker compose --env-file .env logs -f
 
 # Restart services
-docker compose restart
+docker compose --env-file .env restart
 ```
 
 ## 📋 Requirements
@@ -94,5 +131,5 @@ docker compose restart
 
 ## 🤝 Author
 
-🤖 casjay: [Github](https://github.com/casjay) 🤖  
+🤖 casjay: [Github](https://github.com/casjay) 🤖
 🦄 composemgr: [Github](https://github.com/composemgr) 🦄
